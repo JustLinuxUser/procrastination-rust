@@ -1,0 +1,7 @@
+[package]
+name = "procrastination-rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+termion = "3.0.0"
