@@ -317,31 +317,23 @@ fn rand() -> u64 {
     }
 }
 
-pub fn find_magic_rook(bb: u64) -> u64 {
+pub fn find_magic(bb: u64) -> u64 {
     loop {
         let possible_magic = rand() & rand() & rand();
-        if check_magic(bb, possible_magic, 12) {
-            break possible_magic;
-        }
-    }
-}
-pub fn find_magic_bishop(bb: u64) -> u64 {
-    loop {
-        let possible_magic = rand() & rand() & rand();
-        if check_magic(bb, possible_magic, 9) {
+        if check_magic(bb, possible_magic) {
             break possible_magic;
         }
     }
 }
 
-fn check_magic(bb: u64, magic: u64, offset: u8) -> bool {
-    let max_num = 2u64.pow(count_bits(bb));
-    let table_size = 2u64.pow(offset.into());
-    let mut table = vec![false; table_size as usize];
+fn check_magic(bb: u64, magic: u64) -> bool {
+    let bit_count = count_bits(bb);
+    let max_num = 2u64.pow(bit_count);
+    let mut table = vec![false; max_num as usize];
     for idx in 0..max_num {
         let variant = variants(bb, idx);
         let garbage = variant.wrapping_mul(magic);
-        let magic_idx = garbage >> (64 - offset);
+        let magic_idx = garbage >> (64 - bit_count);
         if table[magic_idx as usize] {
             return false;
         }
@@ -564,8 +556,8 @@ pub fn get_rook_moves(rook_bb: u64, pieces: u64) -> u64 {
     let potential_blockers = unsafe { ROOK_POTENTIAL_MOVES[rook_idx] };
     let blockers = potential_blockers & pieces;
     let garbadge = magic.wrapping_mul(blockers);
-    //let offset = 64 - count_bits(potential_blockers);
-    let magic_idx = garbadge >> (64 - 12);
+    let offset = 64 - count_bits(potential_blockers);
+    let magic_idx = garbadge >> offset;
     unsafe { ROOK_MOVES[rook_idx][magic_idx as usize] }
 }
 pub fn get_bishop_moves(bishop_bb: u64, pieces: u64) -> u64 {
@@ -575,8 +567,8 @@ pub fn get_bishop_moves(bishop_bb: u64, pieces: u64) -> u64 {
     let potentinal_blockers = unsafe { BISHOP_POTENTIAL_MOVES[bishop_idx] };
     let blockers = potentinal_blockers & pieces;
     let garbadge = magic.wrapping_mul(blockers);
-    //let offset = 64 - count_bits(potentinal_blockers);
-    let magic_idx = garbadge >> (64 - 9);
+    let offset = 64 - count_bits(potentinal_blockers);
+    let magic_idx = garbadge >> offset;
     unsafe { BISHOP_MOVES[bishop_idx][magic_idx as usize] }
 }
 pub fn init_magics(gen_magics: bool) {
@@ -587,13 +579,10 @@ pub fn init_magics(gen_magics: bool) {
         let bshop_magic;
         unsafe {
             if gen_magics {
-                rook_magic = find_magic_rook(ROOK_POTENTIAL_MOVES[i]);
-                eprintln!("Found the rook magic");
+                rook_magic = find_magic(ROOK_POTENTIAL_MOVES[i]);
                 ROOK_MAGICS[i] = rook_magic;
-                print_bb(BISHOP_POTENTIAL_MOVES[i]);
-                bshop_magic = find_magic_bishop(BISHOP_POTENTIAL_MOVES[i]);
+                bshop_magic = find_magic(BISHOP_POTENTIAL_MOVES[i]);
                 BISHOP_MAGICS[i] = bshop_magic;
-                eprintln!("Found the bishop magic");
             } else {
                 rook_magic = ROOK_MAGICS[i];
                 bshop_magic = BISHOP_MAGICS[i];
