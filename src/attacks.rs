@@ -1,11 +1,92 @@
-use crate::utils::bitboard_utils::print;
+use crate::utils::{bb_to_idx, print_bb};
 
-const WALL_RIGHT: u64 = 0x8080808080808080;
-const WALL_LEFT: u64 = 0x101010101010101;
-const WALL_UP: u64 = 0xff00000000000000;
-const WALL_DOWN: u64 = 0xff;
-const DIAGONAL_DOWN: u64 = 0x102040810204080;
-const DIAGONAL_UP: u64 = 0x8040201008040201;
+pub const WALL_RIGHT: u64 = 0x8080808080808080;
+pub const WALL_LEFT: u64 = 0x101010101010101;
+pub const WALL_UP: u64 = 0xff00000000000000;
+pub const WALL_DOWN: u64 = 0xff;
+pub const DIAGONAL_DOWN: u64 = 0x102040810204080;
+pub const DIAGONAL_UP: u64 = 0x8040201008040201;
+pub const W_PAWN_PUSHES: [u64; 64] = {
+    let mut moves = [0u64; 64];
+    let mut i = 0;
+    while i < 64 {
+        let mut p: u64 = 1 << i;
+        p = move_bb_vert(p, 1);
+        moves[i] = p;
+        i += 1;
+    }
+    moves
+};
+pub const B_PAWN_PUSHES: [u64; 64] = {
+    let mut moves = [0u64; 64];
+    let mut i = 0;
+    while i < 64 {
+        let mut p: u64 = 1 << i;
+        p = move_bb_vert(p, -1);
+        moves[i] = p;
+        i += 1;
+    }
+    moves
+};
+pub const W_PAWN_DOUBLE_PUSHES: [u64; 64] = {
+    let mut moves = [0u64; 64];
+    let mut i = 0;
+    while i < 64 {
+        if i >= 8 && i <= 15 {
+            let mut p: u64 = 1 << i;
+            p = move_bb_vert(p, 2);
+            moves[i] = p;
+        }
+        i += 1;
+    }
+    moves
+};
+pub const B_PAWN_DOUBLE_PUSHES: [u64; 64] = {
+    let mut moves = [0u64; 64];
+    let mut i = 0;
+    while i < 64 {
+        if i >= 48 && i <= 55 {
+            let mut p: u64 = 1 << i;
+            p = move_bb_vert(p, -2);
+            moves[i] = p;
+        }
+        i += 1;
+    }
+    moves
+};
+pub const W_PAWN_CAPS: [u64; 64] = {
+    let mut moves = [0u64; 64];
+    let mut i = 0;
+    while i < 64 {
+        let mut p1: u64 = 1 << i;
+        p1 = move_bb_vert(p1, 1);
+        p1 = move_bb_hor(p1, 1);
+
+        let mut p2: u64 = 1 << i;
+        p2 = move_bb_vert(p2, 1);
+        p2 = move_bb_hor(p2, -1);
+        moves[i] = p2 | p1;
+        i += 1;
+    }
+    moves
+};
+
+pub const B_PAWN_CAPS: [u64; 64] = {
+    let mut moves = [0u64; 64];
+    let mut i = 0;
+    while i < 64 {
+        let mut p1: u64 = 1 << i;
+        p1 = move_bb_vert(p1, -1);
+        p1 = move_bb_hor(p1, 1);
+
+        let mut p2: u64 = 1 << i;
+        p2 = move_bb_vert(p2, -1);
+        p2 = move_bb_hor(p2, -1);
+        moves[i] = p2 | p1;
+        i += 1;
+    }
+    moves
+};
 static mut ROOK_POTENTIAL_MOVES: [u64; 64] = [0; 64];
 static mut BISHOP_POTENTIAL_MOVES: [u64; 64] = [0; 64];
 static mut ROOK_MAGICS: [u64; 64] = [
@@ -145,7 +226,7 @@ static mut ROOK_MOVES: [[u64; 4096]; 64] = [[0; 4096]; 64];
 static mut BISHOP_MOVES: [[u64; 512]; 64] = [[0; 512]; 64];
 
 pub const KNIGHT_TABLE: [u64; 64] = {
-    let bb_sq = 26;
+    let bb_sq = 18;
     let knight_moves_bb = 0xa1100110a;
     let mut table = [0; 64];
     let mut i = 0;
@@ -158,17 +239,6 @@ pub const KNIGHT_TABLE: [u64; 64] = {
 pub const KING_TABLE: [u64; 64] = {
     let bb_sq = 9;
     let knight_moves_bb = 0x70507;
-    let mut table = [0; 64];
-    let mut i = 0;
-    while i < table.len() as u64 {
-        table[i as usize] = move_bb_slow(knight_moves_bb, bb_sq, i);
-        i += 1;
-    }
-    table
-};
-pub const PAWN_TABLE: [u64; 64] = {
-    let bb_sq = 0;
-    let knight_moves_bb = 0x101;
     let mut table = [0; 64];
     let mut i = 0;
     while i < table.len() as u64 {
@@ -234,7 +304,7 @@ pub fn count_bits(bb: u64) -> u32 {
         count += 1;
         bb &= !(1 << zeros);
     }
-    return count;
+    count
 }
 fn rand() -> u64 {
     /* initial seed must be nonzero, don't use a static variable for the state if multithreaded */
@@ -243,7 +313,7 @@ fn rand() -> u64 {
         X ^= X >> 12;
         X ^= X << 25;
         X ^= X >> 27;
-        return X.wrapping_mul(0x2545F4914F6CDD1D);
+        X.wrapping_mul(0x2545F4914F6CDD1D)
     }
 }
 
@@ -269,7 +339,7 @@ fn check_magic(bb: u64, magic: u64) -> bool {
         }
         table[magic_idx as usize] = true;
     }
-    return true;
+    true
 }
 
 pub fn fill_magic_table_rook(magic: u64, square: u64) {
@@ -296,7 +366,12 @@ pub fn fill_magic_table_rook(magic: u64, square: u64) {
 
         // down
         let down_mask = move_bb_slow(WALL_LEFT, 56, square);
-        let first_block = (variant & down_mask).leading_zeros() as u64;
+        let first_block;
+        if variant & down_mask != 0 {
+            first_block = 63 - (variant & down_mask).leading_zeros() as u64;
+        } else {
+            first_block = 100;
+        }
 
         let mut blocked_mask;
         blocked_mask = move_bb_slow(WALL_LEFT, 56, first_block);
@@ -306,7 +381,12 @@ pub fn fill_magic_table_rook(magic: u64, square: u64) {
 
         // left
         let left_mask = move_bb_slow(WALL_DOWN, 7, square);
-        let first_block = (variant & left_mask).leading_zeros() as u64;
+        let first_block;
+        if variant & left_mask != 0 {
+            first_block = 63 - (variant & left_mask).leading_zeros() as u64;
+        } else {
+            first_block = 100;
+        }
 
         let mut blocked_mask;
         blocked_mask = move_bb_slow(WALL_DOWN, 7, first_block);
@@ -327,7 +407,15 @@ pub fn fill_magic_table_rook(magic: u64, square: u64) {
         move_mask &= !(1 << square);
 
         let garbage = variant.wrapping_mul(magic);
-        let magic_idx = garbage >> 54;
+        // if square == 7 {
+        //     println!("potential blockers");
+        //     print_bb(bb);
+        //     println!("variant");
+        //     print_bb(variant);
+        //     println!("Allowed moves");
+        //     print_bb(move_mask);
+        // }
+        let magic_idx = garbage >> (64 - bit_count);
         unsafe {
             ROOK_MOVES[square as usize][magic_idx as usize] = move_mask;
         }
@@ -359,19 +447,21 @@ pub fn fill_magic_table_bshop(magic: u64, square: u64) {
 
         // down - right
         let down_right_mask = move_bb_slow(DIAGONAL_DOWN, 56, square);
-        let first_block = (variant & down_right_mask).leading_zeros() as u64;
-
+        let first_block;
+        if variant & down_right_mask != 0 {
+            first_block = 63 - (variant & down_right_mask).leading_zeros() as u64;
+        } else {
+            first_block = 100;
+        }
         let mut blocked_mask;
         blocked_mask = move_bb_slow(DIAGONAL_DOWN, 56, first_block);
         blocked_mask = move_bb_vert(blocked_mask, -1);
         blocked_mask = !move_bb_hor(blocked_mask, 1);
-
         move_mask |= down_right_mask & blocked_mask;
 
         // up - left
         let up_left_mask = move_bb_slow(DIAGONAL_DOWN, 7, square);
-        let first_block = (variant & up_left_mask).leading_zeros() as u64;
-
+        let first_block = (variant & up_left_mask).trailing_zeros() as u64;
         let mut blocked_mask;
         blocked_mask = move_bb_slow(DIAGONAL_DOWN, 7, first_block);
         blocked_mask = move_bb_vert(blocked_mask, 1);
@@ -380,22 +470,27 @@ pub fn fill_magic_table_bshop(magic: u64, square: u64) {
         move_mask |= up_left_mask & blocked_mask;
 
         // down - left
-        let right_mask = move_bb_slow(DIAGONAL_UP, 63, square);
-        let first_block = (variant & right_mask).trailing_zeros() as u64;
+        let down_left_mask = move_bb_slow(DIAGONAL_UP, 63, square);
+        let first_block;
+        if variant & down_left_mask != 0 {
+            first_block = 63 - (variant & down_left_mask).leading_zeros() as u64;
+        } else {
+            first_block = 100;
+        }
 
         let mut blocked_mask;
         blocked_mask = move_bb_slow(DIAGONAL_UP, 63, first_block);
         blocked_mask = move_bb_vert(blocked_mask, -1);
         blocked_mask = !move_bb_hor(blocked_mask, -1);
 
-        move_mask |= right_mask & blocked_mask;
+        move_mask |= down_left_mask & blocked_mask;
 
         move_mask &= !(1 << square);
 
         let garbage = variant.wrapping_mul(magic);
-        let magic_idx = garbage >> 54;
+        let magic_idx = garbage >> (64 - bit_count);
         unsafe {
-            ROOK_MOVES[square as usize][magic_idx as usize] = move_mask;
+            BISHOP_MOVES[square as usize][magic_idx as usize] = move_mask;
         }
     }
 }
@@ -411,7 +506,7 @@ fn variants(bb: u64, idx: u64) -> u64 {
             bit += 1;
         }
     }
-    return bb;
+    bb
 }
 
 pub fn gen_rook_potential_moves() {
@@ -453,36 +548,61 @@ pub fn gen_bishop_potential_moves() {
         }
     }
 }
+
+pub fn get_rook_moves(rook_bb: u64, pieces: u64) -> u64 {
+    //TODO: Store offsets in the magics table
+    let rook_idx = bb_to_idx(rook_bb);
+    let magic = unsafe { ROOK_MAGICS[rook_idx] };
+    let potential_blockers = unsafe { ROOK_POTENTIAL_MOVES[rook_idx] };
+    let blockers = potential_blockers & pieces;
+    let garbadge = magic.wrapping_mul(blockers);
+    let offset = 64 - count_bits(potential_blockers);
+    let magic_idx = garbadge >> offset;
+    unsafe { ROOK_MOVES[rook_idx][magic_idx as usize] }
+}
+pub fn get_bishop_moves(bishop_bb: u64, pieces: u64) -> u64 {
+    //TODO: Store offsets in the magics table
+    let bishop_idx = bb_to_idx(bishop_bb);
+    let magic = unsafe { BISHOP_MAGICS[bishop_idx] };
+    let potentinal_blockers = unsafe { BISHOP_POTENTIAL_MOVES[bishop_idx] };
+    let blockers = potentinal_blockers & pieces;
+    let garbadge = magic.wrapping_mul(blockers);
+    let offset = 64 - count_bits(potentinal_blockers);
+    let magic_idx = garbadge >> offset;
+    unsafe { BISHOP_MOVES[bishop_idx][magic_idx as usize] }
+}
 pub fn init_magics(gen_magics: bool) {
     gen_rook_potential_moves();
     gen_bishop_potential_moves();
-    if !gen_magics {
-        return;
-    }
     for i in 0..64 {
         let rook_magic;
         let bshop_magic;
         unsafe {
-            rook_magic = find_magic(ROOK_POTENTIAL_MOVES[i]);
-            ROOK_MAGICS[i] = rook_magic;
-            print(BISHOP_POTENTIAL_MOVES[i]);
-            bshop_magic = find_magic(BISHOP_POTENTIAL_MOVES[i]);
-            BISHOP_MAGICS[i] = bshop_magic;
-            println!("Found a bishop magic");
-
+            if gen_magics {
+                rook_magic = find_magic(ROOK_POTENTIAL_MOVES[i]);
+                ROOK_MAGICS[i] = rook_magic;
+                bshop_magic = find_magic(BISHOP_POTENTIAL_MOVES[i]);
+                BISHOP_MAGICS[i] = bshop_magic;
+            } else {
+                rook_magic = ROOK_MAGICS[i];
+                bshop_magic = BISHOP_MAGICS[i];
+            }
             fill_magic_table_rook(rook_magic, i as u64);
             fill_magic_table_bshop(bshop_magic, i as u64);
         }
     }
+    if !gen_magics {
+        return;
+    }
     unsafe {
         println!("{{");
         for magic in ROOK_MAGICS {
-            println!("{magic:#x},");
+            println!("  {magic:#x},");
         }
         println!("}}");
         println!("{{");
         for magic in BISHOP_MAGICS {
-            println!("{magic:#x},");
+            println!("  {magic:#x},");
         }
         println!("}}");
     }
