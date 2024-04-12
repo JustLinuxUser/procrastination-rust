@@ -11,6 +11,6 @@ use attacks::init_magics;
 use uci::uci_loop;
 
 fn main() {
-    init_magics(false);
+    init_magics(true);
     uci_loop();
 }

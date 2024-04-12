@@ -50,17 +50,17 @@ fn test() {
     println!("in check? {}", b.in_check());
 }
 fn perft(board: &mut State, depth: u8) -> u64 {
-    if depth == 0 {
-        return 1;
-    }
-
     let mut count = 0;
 
     let moves = board.pseudo_legal_moves(false);
     for m in moves {
         let mut new_board = *board;
         if new_board.make_move(&m) {
-            count += perft(&mut new_board, depth - 1);
+            if depth == 1 {
+                count += 1;
+            } else {
+                count += perft(&mut new_board, depth - 1);
+            }
         }
     }
     return count;
