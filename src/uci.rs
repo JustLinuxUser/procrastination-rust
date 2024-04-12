@@ -14,7 +14,11 @@ pub fn uci_loop() {
     } else if command == "isready" {
         println!("readyok")
     } else if command == "test" {
-        test();
+        perftree(
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ",
+            6,
+            "",
+        );
     } else if command == "perftree" {
         //./your-perft.sh "$depth" "$fen" "$moves"
         let args = env::args().collect::<Vec<_>>();
