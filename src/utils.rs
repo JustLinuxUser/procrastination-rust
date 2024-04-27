@@ -1,19 +1,11 @@
 use termion::color;
 
-use crate::state;
-
 pub fn check_bit(bb: u64, bit: u8) -> bool {
     bb & 1 << bit != 0
 }
 
 pub const fn bb_to_idx(bb: u64) -> usize {
     bb.trailing_zeros() as usize
-}
-
-pub fn pop_lsb(bb: &mut u64) -> u64 {
-    let bit = 1 << bb.trailing_zeros();
-    *bb &= !bit;
-    bit
 }
 
 pub fn print_bb(bb: u64) {

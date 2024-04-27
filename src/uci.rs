@@ -28,29 +28,17 @@ pub fn uci_loop() {
         let depth: u8 = args[1].parse().unwrap();
         let fen = &args[2];
         eprintln!("fen: {fen}");
-        let moves: &str;
-        if args.len() == 4 {
-            moves = &args[3];
-        } else {
-            moves = "";
-        }
+        let moves: &str = if args.len() == 4 { &args[3] } else { "" };
         eprintln!("moves: {moves}");
-        perftree(&fen, depth, moves);
+        perftree(fen, depth, moves);
     }
 }
 
-fn test() {
-    let mut b = State::new();
-    load_fen(
-        &mut b,
-        "r4rk1/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/1R2K2R w KQ - 0 1",
-    )
-    .unwrap();
-
-    println!("in check? {}", b.in_check());
-}
 fn perft(board: &mut State, depth: u8) -> u64 {
     let mut count = 0;
+    if depth == 0 {
+        return 1;
+    }
 
     let moves = board.pseudo_legal_moves(false);
     for m in moves {
@@ -63,12 +51,13 @@ fn perft(board: &mut State, depth: u8) -> u64 {
             }
         }
     }
-    return count;
+    count
 }
 fn perftree(fen: &str, depth: u8, moves: &str) -> u64 {
     let mut board = State::new();
     let time_start = Instant::now();
     load_fen(&mut board, fen).unwrap();
+    board.eprint_board();
     board.make_move_list(moves);
     if depth == 0 {
         return 1;
@@ -77,11 +66,12 @@ fn perftree(fen: &str, depth: u8, moves: &str) -> u64 {
     let mut total_count = 0;
 
     let moves = board.pseudo_legal_moves(false);
+    eprintln!("Number of moves: {}", moves.moves.len());
     for m in moves {
         let mut new_board = board;
         if new_board.make_move(&m) {
             let count = perft(&mut new_board, depth - 1);
-            println!("{} {count}", m.to_text());
+            eprintln!("{} {count}, {:?}", m.as_text(), m.flags());
             total_count += count;
         }
     }
@@ -94,5 +84,5 @@ fn perftree(fen: &str, depth: u8, moves: &str) -> u64 {
         eprintln!("NPS: inf");
     }
     eprintln!("{:#b}", board.castle);
-    return total_count;
+    total_count
 }

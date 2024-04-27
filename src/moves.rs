@@ -1,4 +1,9 @@
-use crate::{state::State, utils::bb_to_idx};
+use std::vec;
+
+use crate::{
+    core_types::{SquareIdx, BB},
+    utils::print_bb,
+};
 
 /// Layout  MoveFlags   To     From
 ///           1111    111111  111111
@@ -48,29 +53,36 @@ impl From<u8> for MoveFlags {
 }
 
 impl Move {
-    pub fn new(from: u64, to: u64, flags: MoveFlags) -> Self {
+    pub fn new(from: SquareIdx, to: SquareIdx, flags: MoveFlags) -> Self {
         let mut data: u16 = 0;
-        data |= bb_to_idx(from) as u16;
-        data |= (bb_to_idx(to) << 6) as u16;
+        // <flags(4)> <to(6)> <from(6)>
+        data |= from.0 as u16;
+        data |= (to.0 as u16) << 6;
         data |= (flags as u16) << 12;
         Move { data }
     }
-    pub fn from(&self) -> u64 {
-        1 << (self.data & 0b111_111)
+    pub fn from(&self) -> BB {
+        BB(1 << (self.data & 0b111_111))
     }
-    pub fn to(&self) -> u64 {
-        1 << (self.data >> 6 & 0b111_111)
+    pub fn to(&self) -> BB {
+        BB(1 << (self.data >> 6 & 0b111_111))
+    }
+    pub fn from_idx(&self) -> SquareIdx {
+        SquareIdx((self.data & 0b111_111) as u8)
+    }
+    pub fn to_idx(&self) -> SquareIdx {
+        SquareIdx((self.data >> 6 & 0b111_111) as u8)
     }
     pub fn flags(&self) -> MoveFlags {
         ((self.data >> 12 & 0b1111) as u8).into()
     }
 
-    pub fn to_text(&self) -> String {
+    pub fn as_text(&self) -> String {
         let mut ret = String::new();
-        ret.push(((bb_to_idx(self.from()) % 8) as u8 + b'a') as char);
-        ret.push(((bb_to_idx(self.from()) / 8) as u8 + b'1') as char);
-        ret.push(((bb_to_idx(self.to()) % 8) as u8 + b'a') as char);
-        ret.push(((bb_to_idx(self.to()) / 8) as u8 + b'1') as char);
+        ret.push(((self.from_idx().0 % 8) + b'a') as char);
+        ret.push(((self.from_idx().0 / 8) + b'1') as char);
+        ret.push(((self.to_idx().0 % 8) + b'a') as char);
+        ret.push(((self.to_idx().0 / 8) + b'1') as char);
         match self.flags() {
             MoveFlags::PromoQueen => ret.push('q'),
             MoveFlags::PromoRook => ret.push('r'),
@@ -83,55 +95,43 @@ impl Move {
 }
 
 pub struct MoveList {
-    moves: [Move; 256],
-    capacity: usize,
-    iter: usize,
+    pub moves: Vec<Move>,
 }
 
 impl MoveList {
     pub fn new() -> Self {
-        MoveList {
-            moves: [Move::new(0, 0, MoveFlags::PawnMove); 256],
-            capacity: 0,
-            iter: 0,
-        }
+        MoveList { moves: Vec::new() }
     }
     pub fn push(&mut self, m: Move) {
-        self.moves[self.capacity] = m;
-        self.capacity += 1;
+        self.moves.push(m);
     }
-    pub fn push_move(&mut self, from_bb: u64, to_bb: u64, flag: MoveFlags) {
-        let m = Move::new(from_bb as u64, to_bb as u64, flag);
-        self.moves[self.capacity] = m;
-        self.capacity += 1;
+    pub fn push_move(&mut self, from: BB, to: BB, flag: MoveFlags) {
+        let m = Move::new(SquareIdx::from(from), SquareIdx::from(to), flag);
+        self.push(m)
     }
 }
 
-impl Iterator for MoveList {
+impl IntoIterator for MoveList {
     type Item = Move;
+    type IntoIter = vec::IntoIter<Self::Item>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.iter < self.capacity {
-            self.iter += 1;
-            return Some(self.moves[self.iter - 1]);
-        }
-        None
+    fn into_iter(self) -> Self::IntoIter {
+        self.moves.into_iter()
     }
 }
 
 #[test]
 fn test_move_integrity1() {
-    let m = Move::new(1, 2, MoveFlags::Castle);
-    assert_eq!(m.from(), 1);
-    assert_eq!(m.to(), 2);
+    let m = Move::new(SquareIdx(1), SquareIdx(32), MoveFlags::Castle);
+    assert_eq!(m.from_idx().0, 1);
+    assert_eq!(m.to_idx().0, 32);
     assert_eq!(m.flags(), MoveFlags::Castle);
 }
-
 #[test]
 fn test_move_integrity2() {
-    let from_bb = 1 << 63;
-    let m = Move::new(from_bb, 2, MoveFlags::QueenMove);
-    assert_eq!(m.from(), from_bb);
-    assert_eq!(m.to(), 2);
-    assert_eq!(m.flags(), MoveFlags::QueenMove);
+    //a7a5
+    let m = Move::new(SquareIdx(7 * 8), SquareIdx(8 * 5), MoveFlags::Castle);
+    assert_eq!(m.from_idx().0, 7 * 8);
+    assert_eq!(m.to_idx().0, 5 * 8);
+    assert_eq!(m.flags(), MoveFlags::Castle);
 }

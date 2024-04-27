@@ -1,5 +1,9 @@
-use crate::utils::{bb_to_idx, print_bb};
+use std::hint::unreachable_unchecked;
 
+use crate::{
+    core_types::{Color, Piece, SquareIdx, BB},
+    state::State,
+};
 pub const WALL_RIGHT: u64 = 0x8080808080808080;
 pub const WALL_LEFT: u64 = 0x101010101010101;
 pub const WALL_UP: u64 = 0xff00000000000000;
@@ -17,7 +21,7 @@ pub const W_PAWN_PUSHES: [u64; 64] = {
     }
     moves
 };
-pub const B_PAWN_PUSHES: [u64; 64] = {
+const B_PAWN_PUSHES: [u64; 64] = {
     let mut moves = [0u64; 64];
     let mut i = 0;
     while i < 64 {
@@ -28,6 +32,8 @@ pub const B_PAWN_PUSHES: [u64; 64] = {
     }
     moves
 };
+
+pub const PAWN_PUSHES: [[u64; 64]; 2] = [W_PAWN_PUSHES, B_PAWN_PUSHES];
 pub const W_PAWN_DOUBLE_PUSHES: [u64; 64] = {
     let mut moves = [0u64; 64];
     let mut i = 0;
@@ -54,6 +60,7 @@ pub const B_PAWN_DOUBLE_PUSHES: [u64; 64] = {
     }
     moves
 };
+pub const PAWN_DOUBLE_PUSHES: [[u64; 64]; 2] = [W_PAWN_DOUBLE_PUSHES, B_PAWN_DOUBLE_PUSHES];
 pub const W_PAWN_CAPS: [u64; 64] = {
     let mut moves = [0u64; 64];
     let mut i = 0;
@@ -87,6 +94,7 @@ pub const B_PAWN_CAPS: [u64; 64] = {
     }
     moves
 };
+pub const PAWN_CAPS: [[u64; 64]; 2] = [W_PAWN_CAPS, B_PAWN_CAPS];
 static mut ROOK_POTENTIAL_MOVES: [u64; 64] = [0; 64];
 static mut BISHOP_POTENTIAL_MOVES: [u64; 64] = [0; 64];
 static mut ROOK_MAGICS: [u64; 64] = [
@@ -549,27 +557,25 @@ pub fn gen_bishop_potential_moves() {
     }
 }
 
-pub fn get_rook_moves(rook_bb: u64, pieces: u64) -> u64 {
-    //TODO: Store offsets in the magics table
-    let rook_idx = bb_to_idx(rook_bb);
+pub fn get_rook_moves(rook: BB, pieces: BB) -> BB {
+    let rook_idx = SquareIdx::from(rook).0 as usize;
     let magic = unsafe { ROOK_MAGICS[rook_idx] };
     let potential_blockers = unsafe { ROOK_POTENTIAL_MOVES[rook_idx] };
-    let blockers = potential_blockers & pieces;
-    let garbadge = magic.wrapping_mul(blockers);
+    let blockers = BB(potential_blockers) & pieces;
+    let garbadge = magic.wrapping_mul(blockers.0);
     let offset = 64 - count_bits(potential_blockers);
     let magic_idx = garbadge >> offset;
-    unsafe { ROOK_MOVES[rook_idx][magic_idx as usize] }
+    BB(unsafe { ROOK_MOVES[rook_idx][magic_idx as usize] })
 }
-pub fn get_bishop_moves(bishop_bb: u64, pieces: u64) -> u64 {
-    //TODO: Store offsets in the magics table
-    let bishop_idx = bb_to_idx(bishop_bb);
+pub fn get_bishop_moves(bishop: BB, pieces: BB) -> BB {
+    let bishop_idx = SquareIdx::from(bishop).0 as usize;
     let magic = unsafe { BISHOP_MAGICS[bishop_idx] };
     let potentinal_blockers = unsafe { BISHOP_POTENTIAL_MOVES[bishop_idx] };
-    let blockers = potentinal_blockers & pieces;
-    let garbadge = magic.wrapping_mul(blockers);
+    let blockers = BB(potentinal_blockers) & pieces;
+    let garbadge = magic.wrapping_mul(blockers.0);
     let offset = 64 - count_bits(potentinal_blockers);
     let magic_idx = garbadge >> offset;
-    unsafe { BISHOP_MOVES[bishop_idx][magic_idx as usize] }
+    BB(unsafe { BISHOP_MOVES[bishop_idx][magic_idx as usize] })
 }
 pub fn init_magics(gen_magics: bool) {
     gen_rook_potential_moves();
@@ -605,5 +611,19 @@ pub fn init_magics(gen_magics: bool) {
             println!("  {magic:#x},");
         }
         println!("}}");
+    }
+}
+impl State {
+    pub fn get_attacks(&self, piece: Piece, sq: BB) -> BB {
+        let pieces = self.side[0] | self.side[1];
+        let sq_idx = sq.to_idx();
+        match piece {
+            Piece::Pawn => unsafe { unreachable_unchecked() },
+            Piece::Knight => BB(KNIGHT_TABLE[sq_idx.0 as usize]),
+            Piece::Bishop => get_bishop_moves(sq, pieces),
+            Piece::Rook => get_rook_moves(sq, pieces),
+            Piece::Queen => self.get_attacks(Piece::Rook, sq) | self.get_attacks(Piece::Bishop, sq),
+            Piece::King => BB(KING_TABLE[usize::from(sq_idx)]),
+        }
     }
 }
