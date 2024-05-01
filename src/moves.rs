@@ -4,7 +4,7 @@ use crate::core_types::{SquareIdx, BB};
 
 /// Layout  MoveFlags   To     From
 ///           1111    111111  111111
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move {
     // 6 bits for from
     // 6 bits for to
