@@ -1,9 +1,9 @@
 use crate::{
+    board::Board,
     core_types::{Color, Piece, SquareIdx, BB},
-    state::State,
 };
 
-pub fn load_fen(b: &mut State, fen: &str) -> Result<(), ()> {
+pub fn load_fen(b: &mut Board, fen: &str) -> Result<(), ()> {
     //r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -
     for i in 0..6 {
         b.pieces[i] = BB(0);

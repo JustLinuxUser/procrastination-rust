@@ -1,9 +1,6 @@
 use std::vec;
 
-use crate::{
-    core_types::{SquareIdx, BB},
-    utils::print_bb,
-};
+use crate::core_types::{SquareIdx, BB};
 
 /// Layout  MoveFlags   To     From
 ///           1111    111111  111111
@@ -52,6 +49,14 @@ impl From<u8> for MoveFlags {
     }
 }
 
+impl Default for Move {
+    fn default() -> Self {
+        Self {
+            data: Default::default(),
+        }
+    }
+}
+
 impl Move {
     pub fn new(from: SquareIdx, to: SquareIdx, flags: MoveFlags) -> Self {
         let mut data: u16 = 0;
@@ -61,16 +66,16 @@ impl Move {
         data |= (flags as u16) << 12;
         Move { data }
     }
-    pub fn from(&self) -> BB {
+    pub fn get_from(&self) -> BB {
         BB(1 << (self.data & 0b111_111))
     }
-    pub fn to(&self) -> BB {
+    pub fn get_to(&self) -> BB {
         BB(1 << (self.data >> 6 & 0b111_111))
     }
-    pub fn from_idx(&self) -> SquareIdx {
+    pub fn get_from_idx(&self) -> SquareIdx {
         SquareIdx((self.data & 0b111_111) as u8)
     }
-    pub fn to_idx(&self) -> SquareIdx {
+    pub fn get_to_idx(&self) -> SquareIdx {
         SquareIdx((self.data >> 6 & 0b111_111) as u8)
     }
     pub fn flags(&self) -> MoveFlags {
@@ -79,10 +84,10 @@ impl Move {
 
     pub fn as_text(&self) -> String {
         let mut ret = String::new();
-        ret.push(((self.from_idx().0 % 8) + b'a') as char);
-        ret.push(((self.from_idx().0 / 8) + b'1') as char);
-        ret.push(((self.to_idx().0 % 8) + b'a') as char);
-        ret.push(((self.to_idx().0 / 8) + b'1') as char);
+        ret.push(((self.get_from_idx().0 % 8) + b'a') as char);
+        ret.push(((self.get_from_idx().0 / 8) + b'1') as char);
+        ret.push(((self.get_to_idx().0 % 8) + b'a') as char);
+        ret.push(((self.get_to_idx().0 / 8) + b'1') as char);
         match self.flags() {
             MoveFlags::PromoQueen => ret.push('q'),
             MoveFlags::PromoRook => ret.push('r'),
@@ -100,7 +105,9 @@ pub struct MoveList {
 
 impl MoveList {
     pub fn new() -> Self {
-        MoveList { moves: Vec::new() }
+        MoveList {
+            moves: Vec::with_capacity(30),
+        }
     }
     pub fn push(&mut self, m: Move) {
         self.moves.push(m);
@@ -123,15 +130,15 @@ impl IntoIterator for MoveList {
 #[test]
 fn test_move_integrity1() {
     let m = Move::new(SquareIdx(1), SquareIdx(32), MoveFlags::Castle);
-    assert_eq!(m.from_idx().0, 1);
-    assert_eq!(m.to_idx().0, 32);
+    assert_eq!(m.get_from_idx().0, 1);
+    assert_eq!(m.get_to_idx().0, 32);
     assert_eq!(m.flags(), MoveFlags::Castle);
 }
 #[test]
 fn test_move_integrity2() {
     //a7a5
     let m = Move::new(SquareIdx(7 * 8), SquareIdx(8 * 5), MoveFlags::Castle);
-    assert_eq!(m.from_idx().0, 7 * 8);
-    assert_eq!(m.to_idx().0, 5 * 8);
+    assert_eq!(m.get_from_idx().0, 7 * 8);
+    assert_eq!(m.get_to_idx().0, 5 * 8);
     assert_eq!(m.flags(), MoveFlags::Castle);
 }

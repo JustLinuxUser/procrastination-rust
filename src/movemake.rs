@@ -1,13 +1,12 @@
 use core::panic;
 
 use crate::{
-    attacks::{B_PAWN_CAPS, W_PAWN_CAPS},
+    board::Board,
     core_types::{Color, Piece, SquareIdx, BB},
     moves::{Move, MoveFlags},
-    state::State,
 };
 
-impl State {
+impl Board {
     pub fn in_check(&self) -> bool {
         let me = self.side[self.color as usize];
         let king = self.pieces[Piece::King as usize] & me;
@@ -38,18 +37,21 @@ impl State {
         }
 
         let enemy_pawns = self.get_enemy_piece(Piece::Pawn);
-        let caps = BB(match self.color {
-            Color::White => W_PAWN_CAPS[piece_idx],
-            Color::Black => B_PAWN_CAPS[piece_idx],
-        });
+        let caps = self.get_attacks(Piece::Pawn, piece);
         if !(caps & enemy_pawns).empty() {
+            return true;
+        }
+
+        let enemy_king = self.get_enemy_piece(Piece::King);
+        let caps = self.get_attacks(Piece::King, piece);
+        if !(caps & enemy_king).empty() {
             return true;
         }
         false
     }
     pub fn make_move(&mut self, m: &Move) -> bool {
-        let to_bb = m.to();
-        let from_bb = m.from();
+        let to_bb = m.get_to();
+        let from_bb = m.get_from();
         let to = SquareIdx::from(to_bb).0 as usize;
         let from = SquareIdx::from(from_bb).0 as usize;
         let my_color_idx = self.color as usize;

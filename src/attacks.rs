@@ -1,8 +1,6 @@
-use std::hint::unreachable_unchecked;
-
 use crate::{
-    core_types::{Color, Piece, SquareIdx, BB},
-    state::State,
+    board::Board,
+    core_types::{Piece, SquareIdx, BB},
 };
 pub const WALL_RIGHT: u64 = 0x8080808080808080;
 pub const WALL_LEFT: u64 = 0x101010101010101;
@@ -613,12 +611,12 @@ pub fn init_magics(gen_magics: bool) {
         println!("}}");
     }
 }
-impl State {
+impl Board {
     pub fn get_attacks(&self, piece: Piece, sq: BB) -> BB {
         let pieces = self.side[0] | self.side[1];
-        let sq_idx = sq.to_idx();
+        let sq_idx = sq.as_idx();
         match piece {
-            Piece::Pawn => unsafe { unreachable_unchecked() },
+            Piece::Pawn => BB(PAWN_CAPS[self.color as usize][sq_idx.0 as usize]),
             Piece::Knight => BB(KNIGHT_TABLE[sq_idx.0 as usize]),
             Piece::Bishop => get_bishop_moves(sq, pieces),
             Piece::Rook => get_rook_moves(sq, pieces),

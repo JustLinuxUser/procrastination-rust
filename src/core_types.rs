@@ -1,4 +1,6 @@
-use std::usize;
+use std::{hint::unreachable_unchecked, usize};
+
+use crate::moves::MoveFlags;
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Color {
@@ -30,14 +32,37 @@ pub enum Piece {
     King,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy)]
+impl Piece {
+    pub const fn from_u8(p: u8) -> Self {
+        match p {
+            0 => Self::Pawn,
+            1 => Self::Knight,
+            2 => Self::Bishop,
+            3 => Self::Rook,
+            4 => Self::Queen,
+            5 => Self::King,
+            _ => unsafe { unreachable_unchecked() },
+        }
+    }
+    pub const fn as_flag(&self) -> MoveFlags {
+        match self {
+            Piece::Pawn => MoveFlags::PawnMove,
+            Piece::Knight => MoveFlags::KnightMove,
+            Piece::Bishop => MoveFlags::BishopMove,
+            Piece::Rook => MoveFlags::RookMove,
+            Piece::Queen => MoveFlags::QueenMove,
+            Piece::King => MoveFlags::KingMove,
+        }
+    }
+}
+#[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct BB(pub u64);
 
 impl BB {
-    pub fn empty(&self) -> bool {
+    pub const fn empty(&self) -> bool {
         self.0 == 0
     }
-    pub fn to_idx(&self) -> SquareIdx {
+    pub const fn as_idx(&self) -> SquareIdx {
         SquareIdx(self.0.trailing_zeros() as u8)
     }
 }
@@ -55,6 +80,7 @@ impl From<SquareIdx> for usize {
         sq.0 as usize
     }
 }
+
 impl SquareIdx {
     pub fn new() -> Self {
         Self(255)
@@ -135,8 +161,8 @@ impl std::ops::BitXorAssign for BB {
         self.0 = self.0 ^ rhs.0;
     }
 }
-impl Into<BB> for u64 {
-    fn into(self) -> BB {
-        BB(self)
+impl From<u64> for BB {
+    fn from(val: u64) -> Self {
+        BB(val)
     }
 }
