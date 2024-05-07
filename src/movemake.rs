@@ -14,8 +14,6 @@ impl Board {
         self.under_attack(king)
     }
     pub fn under_attack(&self, piece: BB) -> bool {
-        let piece_idx = SquareIdx::from(piece).0 as usize;
-
         let knight_attacks = self.get_attacks(Piece::Knight, piece);
         if !(knight_attacks & self.get_enemy_piece(Piece::Knight)).empty() {
             return true;
@@ -168,7 +166,7 @@ impl Board {
         }
         let req_moves = moves.split_whitespace().collect::<Vec<_>>();
         for req_m in req_moves {
-            let moves = self.pseudo_legal_moves(false);
+            let moves = self.gen_pseudo_legal();
             let mut found = false;
             for m in moves {
                 if m.as_text() == req_m {

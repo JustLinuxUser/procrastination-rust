@@ -126,7 +126,7 @@ fn perft(board: &mut Board, depth: u8) -> u64 {
         return 1;
     }
 
-    let moves = board.pseudo_legal_moves(false);
+    let moves = board.gen_pseudo_legal();
     for m in moves {
         let mut new_board = *board;
         if new_board.make_move(&m) {
@@ -162,7 +162,7 @@ fn perftree() -> u64 {
 
     let mut total_count = 0;
 
-    let moves = board.pseudo_legal_moves(false);
+    let moves = board.gen_pseudo_legal();
     eprintln!("Number of moves: {}", moves.moves.len());
     for m in moves {
         let mut new_board = board;
